@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Customer Feedback Survey</title>
+  <title>Policy Feedback Survey</title>
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -82,7 +82,7 @@
   <div class="card">
     <div id="survey-section">
       <h2>How did we do?</h2>
-      <p>On a scale of 1 to 10, how likely are you to recommend us?</p>
+      <p>On a scale of 1 to 10, how satisfied are you with this policy?</p>
       
       <div id="error-message" class="error-msg hidden">Please select a rating before submitting.</div>
 
@@ -98,12 +98,12 @@
 
     <div id="success-section" class="hidden">
       <h2>Thank You!</h2>
-      <p>Your feedback has been successfully recorded. We appreciate your time.</p>
+      <p>Your feedback regarding this policy has been successfully recorded. We appreciate your time.</p>
     </div>
     
     <div id="invalid-section" class="hidden">
       <h2>Invalid Link</h2>
-      <p>We could not identify your account. Please use the exact link provided in your email.</p>
+      <p>We could not identify the specific policy. Please use the exact link provided in your email.</p>
     </div>
   </div>
 
@@ -113,10 +113,10 @@
     
     let selectedScore = null;
     const urlParams = new URLSearchParams(window.location.search);
-    const contactId = urlParams.get('contactId');
+    const policyId = urlParams.get('policyId');
 
     // Validate URL parameters on load
-    if (!contactId) {
+    if (!policyId) {
       document.getElementById('survey-section').classList.add('hidden');
       document.getElementById('invalid-section').classList.remove('hidden');
     }
@@ -145,6 +145,7 @@
 
     async function submitSurvey() {
       if (!selectedScore) {
+        document.getElementById('error-message').innerText = "Please select a rating before submitting.";
         document.getElementById('error-message').classList.remove('hidden');
         return;
       }
@@ -161,7 +162,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
             score: selectedScore, 
-            contactId: contactId, 
+            policyId: policyId, 
             comments: commentsText 
           })
         });
