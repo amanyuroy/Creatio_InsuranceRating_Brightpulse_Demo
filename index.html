@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Thank You for Your Feedback</title>
+  <title>Customer Feedback Survey</title>
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -19,100 +19,169 @@
       padding: 32px;
       border-radius: 12px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-      max-width: 420px;
+      max-width: 500px;
       width: 100%;
       text-align: center;
     }
     h2 { color: #1f2937; margin-bottom: 8px; }
     p { color: #6b7280; font-size: 15px; margin-bottom: 24px; }
+    
+    .rating-container {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .rating-btn {
+      width: 40px;
+      height: 40px;
+      border: 1px solid #d1d5db;
+      background-color: white;
+      border-radius: 50%;
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .rating-btn:hover { border-color: #2563eb; color: #2563eb; }
+    .rating-btn.selected {
+      background-color: #2563eb;
+      color: white;
+      border-color: #2563eb;
+    }
+    
     textarea {
       width: 100%;
-      height: 80px;
-      padding: 10px;
+      height: 100px;
+      padding: 12px;
       border: 1px solid #d1d5db;
       border-radius: 6px;
       box-sizing: border-box;
-      margin-bottom: 16px;
+      margin-bottom: 20px;
       font-family: inherit;
+      resize: vertical;
     }
-    button {
+    .submit-btn {
       background-color: #2563eb;
       color: white;
       border: none;
-      padding: 10px 20px;
+      padding: 12px 24px;
       border-radius: 6px;
       cursor: pointer;
       font-weight: 600;
+      width: 100%;
+      font-size: 16px;
     }
-    button:hover { background-color: #1d4ed8; }
+    .submit-btn:disabled { background-color: #9ca3af; cursor: not-allowed; }
     .hidden { display: none; }
-    .status-msg { margin-top: 12px; font-size: 14px; color: #10b981; }
+    .error-msg { color: #ef4444; margin-bottom: 16px; font-size: 14px; }
   </style>
 </head>
 <body>
 
   <div class="card">
-    <div id="loading">
-      <h2>Recording your score...</h2>
+    <div id="survey-section">
+      <h2>How did we do?</h2>
+      <p>On a scale of 1 to 10, how likely are you to recommend us?</p>
+      
+      <div id="error-message" class="error-msg hidden">Please select a rating before submitting.</div>
+
+      <div class="rating-container" id="rating-buttons">
+        <!-- Buttons 1-10 generated via JS -->
+      </div>
+      
+      <p style="text-align: left; margin-bottom: 8px;">Additional Comments (Optional):</p>
+      <textarea id="comments" placeholder="Tell us about your experience..."></textarea>
+      
+      <button id="submit-button" class="submit-btn" onclick="submitSurvey()">Submit Feedback</button>
     </div>
 
-    <div id="content" class="hidden">
+    <div id="success-section" class="hidden">
       <h2>Thank You!</h2>
-      <p>Your rating of <strong id="score-display"></strong>/10 has been recorded.</p>
-      
-      <div id="comment-section">
-        <p>Would you like to share any additional comments?</p>
-        <textarea id="comments" placeholder="Optional comments..."></textarea>
-        <br>
-        <button onclick="submitComment()">Submit Comments</button>
-      </div>
-      <div id="status" class="status-msg"></div>
+      <p>Your feedback has been successfully recorded. We appreciate your time.</p>
+    </div>
+    
+    <div id="invalid-section" class="hidden">
+      <h2>Invalid Link</h2>
+      <p>We could not identify your account. Please use the exact link provided in your email.</p>
     </div>
   </div>
 
   <script>
     // REPLACE THIS WITH YOUR CLOUDFLARE WORKER URL
     const WORKER_URL = "https://creatio-rating-proxy.your-subdomain.workers.dev";
-
+    
+    let selectedScore = null;
     const urlParams = new URLSearchParams(window.location.search);
-    const score = urlParams.get('score');
     const contactId = urlParams.get('contactId');
 
-    async function sendData(commentsText = "") {
-      if (!score || !contactId) {
-        document.getElementById('loading').innerHTML = "<h2>Invalid Request Link</h2>";
+    // Validate URL parameters on load
+    if (!contactId) {
+      document.getElementById('survey-section').classList.add('hidden');
+      document.getElementById('invalid-section').classList.remove('hidden');
+    }
+
+    // Generate 1-10 rating buttons
+    const ratingContainer = document.getElementById('rating-buttons');
+    for (let i = 1; i <= 10; i++) {
+      const btn = document.createElement('button');
+      btn.className = 'rating-btn';
+      btn.innerText = i;
+      btn.onclick = () => selectRating(i, btn);
+      ratingContainer.appendChild(btn);
+    }
+
+    function selectRating(score, clickedBtn) {
+      selectedScore = score;
+      document.getElementById('error-message').classList.add('hidden');
+      
+      // Remove 'selected' class from all buttons
+      const buttons = document.querySelectorAll('.rating-btn');
+      buttons.forEach(b => b.classList.remove('selected'));
+      
+      // Add 'selected' class to the clicked button
+      clickedBtn.classList.add('selected');
+    }
+
+    async function submitSurvey() {
+      if (!selectedScore) {
+        document.getElementById('error-message').classList.remove('hidden');
         return;
       }
+
+      const commentsText = document.getElementById('comments').value;
+      const submitBtn = document.getElementById('submit-button');
+      
+      submitBtn.innerText = "Submitting...";
+      submitBtn.disabled = true;
 
       try {
         const response = await fetch(WORKER_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ score, contactId, comments: commentsText })
+          body: JSON.stringify({ 
+            score: selectedScore, 
+            contactId: contactId, 
+            comments: commentsText 
+          })
         });
 
         if (response.ok) {
-          document.getElementById('loading').classList.add('hidden');
-          document.getElementById('content').classList.remove('hidden');
-          document.getElementById('score-display').innerText = score;
+          document.getElementById('survey-section').classList.add('hidden');
+          document.getElementById('success-section').classList.remove('hidden');
         } else {
-          document.getElementById('loading').innerHTML = "<h2>Error recording rating.</h2>";
+          document.getElementById('error-message').innerText = "System error recording feedback. Please try again.";
+          document.getElementById('error-message').classList.remove('hidden');
+          submitBtn.innerText = "Submit Feedback";
+          submitBtn.disabled = false;
         }
       } catch (err) {
-        document.getElementById('loading').innerHTML = "<h2>Connection Error.</h2>";
+        document.getElementById('error-message').innerText = "Connection error. Please check your internet.";
+        document.getElementById('error-message').classList.remove('hidden');
+        submitBtn.innerText = "Submit Feedback";
+        submitBtn.disabled = false;
       }
     }
-
-    async function submitComment() {
-      const commentVal = document.getElementById('comments').value;
-      document.getElementById('status').innerText = "Updating...";
-      await sendData(commentVal);
-      document.getElementById('status').innerText = "Comments saved successfully!";
-      document.getElementById('comment-section').classList.add('hidden');
-    }
-
-    // Automatically send initial score on page load
-    sendData();
   </script>
 </body>
 </html>
